@@ -1,20 +1,56 @@
 import React, { useState, useEffect } from "react"
 import axios from "axios"
+import InputPalabra from "./InputPalabra"
+import Contador from "./Contador"
+import ListaPalabras from "./ListaPalabras"
+import { FaRegStopCircle } from "react-icons/fa"
+import { FaDiceD6 } from "react-icons/fa"
 
-const Tablero = () => {
+const Tablero = ({ bestScore, setBestScore }) => {
+  const segundos = 180
   const [tablero, setTablero] = useState(generarTablero())
   const [palabrasEncontradas, setPalabrasEncontradas] = useState([])
-  const [cargando, setCargando] = useState(false)
   const [palabrasCorrectas, setPalabrasCorrectas] = useState([])
   const [palabraIngresada, setPalabraIngresada] = useState("")
   const [mensaje, setMensaje] = useState("")
+  const [temporizador, setTemporizador] = useState(segundos)
+  const [juegoActivo, setJuegoActivo] = useState(false)
 
   useEffect(() => {
-    encontrarPalabras()
-  }, [tablero]) 
+    if (juegoActivo) encontrarPalabras()
+  }, [tablero])
+
+  useEffect(() => {
+    // Actualizar bestScore si palabrasCorrectas es mayor que bestScore
+    if (palabrasCorrectas.length > bestScore) {
+      setBestScore(palabrasCorrectas.length)
+    }
+  }, [palabrasCorrectas, palabrasEncontradas, bestScore, setBestScore])
+
+  useEffect(() => {
+    let intervalo
+    if (juegoActivo && temporizador > 0) {
+      intervalo = setInterval(() => {
+        setTemporizador((prev) => prev - 1)
+      }, 1000)
+    } else if (temporizador === 0) {
+      terminarJuego()
+    }
+    return () => clearInterval(intervalo)
+  }, [juegoActivo, temporizador])
+
+  const terminarJuego = () => {
+    setJuegoActivo(false)
+    setMensaje(
+      `Tiempo finalizado. Palabras correctas: ${palabrasCorrectas.length} de ${palabrasEncontradas.length} encontradas.`
+    )
+  }
+
+  const detenerJuego = () => {
+    setTemporizador(0) // Forzar finalización del juego como si el tiempo se acabara
+  }
 
   const encontrarPalabras = async () => {
-    setCargando(true)
     try {
       const response = await axios.post(
         "http://localhost:3000/api/boggle/find-words",
@@ -34,16 +70,18 @@ const Tablero = () => {
       console.error("Error al buscar palabras:", error)
       setPalabrasEncontradas([])
     }
-    setCargando(false)
   }
 
   const verificarPalabra = (palabra) => {
     if (!palabrasEncontradas.includes(palabra)) {
       setMensaje("La palabra no fue encontrada.")
+      setPalabraIngresada("")
     } else if (palabrasCorrectas.includes(palabra)) {
       setMensaje("La palabra ya fue ingresada.")
+      setPalabraIngresada("")
     } else {
       setPalabrasCorrectas([...palabrasCorrectas, palabra])
+      setPalabraIngresada("")
       setMensaje("¡Palabra correcta!")
     }
   }
@@ -143,56 +181,78 @@ const Tablero = () => {
 
   const sortearTablero = () => {
     setTablero(generarTablero())
+    setPalabrasCorrectas([])
+    setPalabraIngresada("")
+    setMensaje("")
+    setTemporizador(segundos)
+    setJuegoActivo(true)
   }
 
   return (
-    <div className="app-container flex flex-col items-center justify-center min-h-screen bg-gray-100 p-5">
+    <div className="flex flex-col items-center justify-center flex-grow p-5">
       <div className="flex flex-col items-center justify-center">
-        <button
-          onClick={sortearTablero}
-          className="my-4 w-full max-w-xs px-4 py-2 bg-green-500 text-white font-bold rounded hover:bg-green-600 transition duration-150"
-        >
-          Comenzar
-        </button>
-        <div className="grid grid-cols-4 gap-4 w-full max-w-xs">
-          {tablero.flat().map((letra, idx) => (
-            <div
-              key={idx}
-              className="w-16 h-16 flex items-center justify-center bg-blue-500 text-white font-bold text-2xl rounded shadow-lg"
-            >
-              {letra}
+        {!juegoActivo && (
+          <div>
+            <div>
+              <div className="text-8xl font-jersey flex gap-2">
+                <h1>Boggle</h1>
+                <FaDiceD6 />
+              </div>
+              <div className="flex justify-center flex-col items-center mt-5">
+                <p className="text-xl ">Desarrollo y Arquitecturas Web</p>
+              </div>
             </div>
-          ))}
-        </div>
-      </div>
-      {cargando ? (
-        <p>Cargando...</p>
-      ) : (
-        <div className="flex flex-col w-full max-w-xs items-center">
-          <input
-            value={palabraIngresada}
-            onChange={(e) => setPalabraIngresada(e.target.value)}
-            className="w-full p-2 border-2 border-blue-300 my-3 rounded-lg focus:outline-none focus:border-blue-500 transition duration-200 ease-in-out"
-            placeholder="Ingresa una palabra..."
-          />
-          <button
-            onClick={() => verificarPalabra(palabraIngresada)}
-            className="w-full px-4 py-2 bg-blue-500 text-white font-bold rounded-lg hover:bg-blue-600 transition duration-150 ease-in-out shadow"
-          >
-            Verificar Palabra
-          </button>
-          <p className="mt-4 text-lg text-gray-700">{mensaje}</p>
-          {palabrasCorrectas.length > 0 && (
-            <ul className="mt-2 list-disc list-inside">
-              {palabrasCorrectas.map((palabra, index) => (
-                <li key={index} className="text-green-600">
-                  {palabra}
-                </li>
+
+            <button
+              onClick={sortearTablero}
+              className="my-4 w-full max-w-xs px-4 py-2 bg-secondary text-white font-bold rounded hover:bg-secondary-900 transition duration-150"
+            >
+              Comenzar
+            </button>
+          </div>
+        )}
+        {juegoActivo && (
+          <>
+            <Contador temporizador={temporizador} />
+            <button
+              onClick={detenerJuego}
+              className="my-2 w-full flex items-center justify-between max-w-xs px-4 py-2 bg-accent text-white font-bold rounded transition duration-150"
+            >
+              Detener Juego <FaRegStopCircle />
+            </button>
+            <div className="grid grid-cols-4 gap-4 w-full max-w-xs">
+              {tablero.flat().map((letra, idx) => (
+                <div
+                  key={idx}
+                  className="w-16 h-16 flex items-center justify-center bg-primary text-white font-bold text-2xl rounded shadow-lg"
+                >
+                  {letra}
+                </div>
               ))}
-            </ul>
-          )}
-        </div>
-      )}
+            </div>
+            <InputPalabra
+              palabraIngresada={palabraIngresada}
+              setPalabraIngresada={setPalabraIngresada}
+              verificarPalabra={verificarPalabra}
+              mensaje={mensaje}
+              palabrasCorrectas={palabrasCorrectas}
+            />
+          </>
+        )}
+
+        <ListaPalabras palabrasCorrectas={palabrasCorrectas} />
+        <p className="mt-4 text-lg text-gray-700">{mensaje}</p>
+        {!juegoActivo && palabrasEncontradas.length > 0 && (
+          <p className="text-lg text-gray-700">
+            Porcentaje de aciertos:{" "}
+            {(
+              (palabrasCorrectas.length / palabrasEncontradas.length) *
+              100
+            ).toFixed(2)}
+            %
+          </p>
+        )}
+      </div>
     </div>
   )
 }
