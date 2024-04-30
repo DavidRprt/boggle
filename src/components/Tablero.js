@@ -1,23 +1,29 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import axios from "axios"
 
 const Tablero = () => {
   const [tablero, setTablero] = useState(generarTablero())
-  const [palabrasEncontradas, setPalabrasEncontradas] = useState(
-    generarTablero()
-  )
+  const [palabrasEncontradas, setPalabrasEncontradas] = useState([])
+  const [cargando, setCargando] = useState(false)
+  const [palabrasCorrectas, setPalabrasCorrectas] = useState([])
+  const [palabraIngresada, setPalabraIngresada] = useState("")
+  const [mensaje, setMensaje] = useState("")
+
+  useEffect(() => {
+    encontrarPalabras()
+  }, [tablero]) 
 
   const encontrarPalabras = async () => {
+    setCargando(true)
     try {
       const response = await axios.post(
         "http://localhost:3000/api/boggle/find-words",
-        {
-          board: tablero,
-        }
+        { board: tablero }
       )
       const data = response.data
       if (data.wordsFound) {
         setPalabrasEncontradas(data.wordsFound)
+        console.log(data.wordsFound)
       } else {
         console.error(
           "No se encontraron palabras o hubo un error en la respuesta"
@@ -27,6 +33,18 @@ const Tablero = () => {
     } catch (error) {
       console.error("Error al buscar palabras:", error)
       setPalabrasEncontradas([])
+    }
+    setCargando(false)
+  }
+
+  const verificarPalabra = (palabra) => {
+    if (!palabrasEncontradas.includes(palabra)) {
+      setMensaje("La palabra no fue encontrada.")
+    } else if (palabrasCorrectas.includes(palabra)) {
+      setMensaje("La palabra ya fue ingresada.")
+    } else {
+      setPalabrasCorrectas([...palabrasCorrectas, palabra])
+      setMensaje("¡Palabra correcta!")
     }
   }
 
@@ -64,7 +82,7 @@ const Tablero = () => {
       }
     }
 
-    // Verificamos si hay una 'Q' en el tablero 
+    // Verificamos si hay una 'Q' en el tablero
     for (let i = 0; i < TAMANO; i++) {
       for (let j = 0; j < TAMANO; j++) {
         if (nuevoTablero[i][j] === "Q") {
@@ -123,47 +141,58 @@ const Tablero = () => {
     return nuevoTablero
   }
 
-  // Función para manejar el clic en el botón de sortear
   const sortearTablero = () => {
     setTablero(generarTablero())
-    console.log(tablero)
   }
 
   return (
     <div className="app-container flex flex-col items-center justify-center min-h-screen bg-gray-100 p-5">
-      <div className="grid grid-cols-4 gap-4">
-        {tablero.flat().map((letra, idx) => (
-          <div
-            key={idx}
-            className="w-16 h-16 flex items-center justify-center bg-blue-500 text-white font-bold text-2xl rounded shadow-lg"
+      <div className="flex flex-col items-center justify-center">
+        <button
+          onClick={sortearTablero}
+          className="my-4 w-full max-w-xs px-4 py-2 bg-green-500 text-white font-bold rounded hover:bg-green-600 transition duration-150"
+        >
+          Comenzar
+        </button>
+        <div className="grid grid-cols-4 gap-4 w-full max-w-xs">
+          {tablero.flat().map((letra, idx) => (
+            <div
+              key={idx}
+              className="w-16 h-16 flex items-center justify-center bg-blue-500 text-white font-bold text-2xl rounded shadow-lg"
+            >
+              {letra}
+            </div>
+          ))}
+        </div>
+      </div>
+      {cargando ? (
+        <p>Cargando...</p>
+      ) : (
+        <div className="flex flex-col w-full max-w-xs items-center">
+          <input
+            value={palabraIngresada}
+            onChange={(e) => setPalabraIngresada(e.target.value)}
+            className="w-full p-2 border-2 border-blue-300 my-3 rounded-lg focus:outline-none focus:border-blue-500 transition duration-200 ease-in-out"
+            placeholder="Ingresa una palabra..."
+          />
+          <button
+            onClick={() => verificarPalabra(palabraIngresada)}
+            className="w-full px-4 py-2 bg-blue-500 text-white font-bold rounded-lg hover:bg-blue-600 transition duration-150 ease-in-out shadow"
           >
-            {letra}
-          </div>
-        ))}
-      </div>
-      <button
-        onClick={sortearTablero}
-        className="mt-4 px-4 py-2 bg-green-500 text-white font-bold rounded hover:bg-green-600 transition duration-150"
-      >
-        Sortear Letras
-      </button>
-      <button
-        onClick={encontrarPalabras}
-        className="mt-4 px-4 py-2 bg-blue-500 text-white font-bold rounded hover:bg-blue-600 transition duration-150"
-      >
-        Encontrar Palabras
-      </button>
-      <div className="words-list mt-4">
-        {palabrasEncontradas.length > 0 ? (
-          <ul>
-            {palabrasEncontradas.map((palabra, index) => (
-              <li key={index}>{palabra}</li>
-            ))}
-          </ul>
-        ) : (
-          <p>No se han encontrado palabras aún.</p>
-        )}
-      </div>
+            Verificar Palabra
+          </button>
+          <p className="mt-4 text-lg text-gray-700">{mensaje}</p>
+          {palabrasCorrectas.length > 0 && (
+            <ul className="mt-2 list-disc list-inside">
+              {palabrasCorrectas.map((palabra, index) => (
+                <li key={index} className="text-green-600">
+                  {palabra}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   )
 }
