@@ -51,15 +51,17 @@ const Tablero = ({ bestScore, setBestScore }) => {
   }
 
   const encontrarPalabras = async () => {
+    const URL = `${process.env.REACT_APP_BACKEND_URL}/find-words`
     try {
       const response = await axios.post(
-        "http://localhost:3000/api/boggle/find-words",
+        URL,
         { board: tablero }
       )
       const data = response.data
       if (data.wordsFound) {
         setPalabrasEncontradas(data.wordsFound)
         console.log(data.wordsFound)
+   
       } else {
         console.error(
           "No se encontraron palabras o hubo un error en la respuesta"
@@ -68,6 +70,7 @@ const Tablero = ({ bestScore, setBestScore }) => {
       }
     } catch (error) {
       console.error("Error al buscar palabras:", error)
+           console.log(URL)
       setPalabrasEncontradas([])
     }
   }
